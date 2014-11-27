@@ -5,6 +5,7 @@
 #include <linux/poll.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
+#include <linux/version.h>
 
 #include "blktap.h"
 
@@ -20,6 +21,17 @@ static struct cdev blktap_ring_cdev;
 #define BLKTAP_INFO_SIZE_AT(_memb)			\
 	offsetof(struct blktap_device_info, _memb) +	\
 	sizeof(((struct blktap_device_info*)0)->_memb)
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)
+#define BIO_BI_SECTOR(bio)	((bio)->bi_iter.bi_sector)
+#else
+#define BIO_BI_SECTOR(bio)	((bio)->bi_sector)
+#endif
+
+#ifndef VM_RESERVED
+/* dgilbert: Was VM_RESERVE, not sure what it should be */
+#define VM_RESERVED	VM_IO;
+#endif
 
 static void
 blktap_ring_read_response(struct blktap *tap,
@@ -277,7 +289,7 @@ blktap_ring_make_tr_request(struct blktap *tap,
 	unsigned int nsecs;
 
 	breq->u.tr.nr_sectors    = nsecs = bio_sectors(bio);
-	breq->u.tr.sector_number = bio->bi_sector;
+	breq->u.tr.sector_number = BIO_BI_SECTOR(bio);
 
 	return nsecs;
 }
